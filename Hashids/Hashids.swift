@@ -30,14 +30,21 @@ public struct HashidsOptions {
 public protocol HashidsGenerator {
     typealias Char
     
-    func encode(value: Int...) -> String?
+    func encode(value: Int64...) -> String?
+    
+    func encode(values: [Int64]) -> String?
     
     func encode(values: [Int]) -> String?
     
+    func encode(value: Int...) -> String?
+    
+    func decode64(value: String) -> [Int64]
+    
+    func decode64(value: [Char]) -> [Int64]
+    
     func decode(value: String) -> [Int]
     
-    func decode(value: [Char]) -> [Int]
-    
+    func decode(value: [Char]) ->  [Int]
 }
 
 
@@ -116,11 +123,11 @@ public class Hashids_<T: protocol<Equatable, UnsignedIntegerType>>: HashidsGener
     
     // MARK: public api
 
-    public func encode(value: Int...) -> String? {
+    public func encode(value: Int64...) -> String? {
         return encode(value)
     }
     
-    public func encode(values: [Int]) -> String? {
+    public func encode(values: [Int64]) -> String? {
         let ret = _encode(values)
         return ret.reduce(String(), combine: { (var so, i) in
             let scalar:UInt32 = numericCast(i)
@@ -129,27 +136,43 @@ public class Hashids_<T: protocol<Equatable, UnsignedIntegerType>>: HashidsGener
         })
     }
     
-    public func decode(value: String) -> [Int] {
+    public func encode(value: Int...) -> String? {
+        return encode(value)
+    }
+    
+    public func encode(values: [Int]) -> String? {
+        return encode(values.map { Int64($0) })
+    }
+    
+    public func decode64(value: String) -> [Int64] {
         let trimmed = value.stringByTrimmingCharactersInSet(NSCharacterSet.whitespaceAndNewlineCharacterSet())
         let hash: [Char] = trimmed.unicodeScalars.map{ numericCast($0.value) }
-        return self.decode(hash)
+        return self.decode64(hash)
+    }
+    
+    public func decode(value: String) -> [Int] {
+        return self.decode64(value).map { Int($0) }
+    }
+    
+    public func decode64(value: [Char]) -> [Int64] {
+        return self._decode(value)
     }
     
     public func decode(value: [Char]) -> [Int] {
-        return self._decode(value)
+        return self._decode(value).map{ Int($0) }
     }
     
     // MARK: private funcitons 
     
-    private func _encode(numbers: [Int]) -> [Char] {
+    private func _encode(numbers: [Int64]) -> [Char] {
         var alphabet = self.alphabet
-        var numbers_hash_int = 0
+        var numbers_hash_int: Int64 = 0
 
         for (index, value) in numbers.enumerate() {
             numbers_hash_int += value % ( index + 100 )
         }
         
-        let lottery = alphabet[numbers_hash_int % alphabet.count]
+        let lottery = alphabet[Int(numbers_hash_int % Int64(alphabet.count))]
         var hash = [lottery]
   
         var lsalt = [Char]()
@@ -161,9 +184,9 @@ public class Hashids_<T: protocol<Equatable, UnsignedIntegerType>>: HashidsGener
             _hash(&hash, number: value, alphabet: alphabet)
             
             if index + 1 < numbers.count  {
-                let number = value % (numericCast(hash[lastIndex]) + index)
-                let seps_index = number % self.seps.count
-                hash.append(self.seps[seps_index])
+                let number = value % Int64((numericCast(hash[lastIndex]) + index))
+                let seps_index = number % Int64(self.seps.count)
+                hash.append(self.seps[Int(seps_index)])
             }
             
             lsalt.replaceRange(lsaltARange, with: alphabet)
@@ -172,13 +195,13 @@ public class Hashids_<T: protocol<Equatable, UnsignedIntegerType>>: HashidsGener
         let minLength: Int = numericCast(self.minHashLength)
         
         if hash.count < minLength {
-            let guard_index = (numbers_hash_int + numericCast(hash[0])) % self.guards.count
-            let safeGuard = self.guards[guard_index]
+            let guard_index = (numbers_hash_int + numericCast(hash[0])) % Int64(self.guards.count)
+            let safeGuard = self.guards[Int(guard_index)]
             hash.insert(safeGuard, atIndex: 0)
             
             if hash.count < minLength {
-                let guard_index = (numbers_hash_int + numericCast(hash[2])) % self.guards.count
-                let safeGuard = self.guards[guard_index]
+                let guard_index = (numbers_hash_int + numericCast(hash[2])) % Int64(self.guards.count)
+                let safeGuard = self.guards[Int(guard_index)]
                 hash.append(safeGuard)
             }
         }
@@ -200,8 +223,8 @@ public class Hashids_<T: protocol<Equatable, UnsignedIntegerType>>: HashidsGener
         return hash
     }
     
-    private func _decode(hash: [Char]) -> [Int] {
-        var ret = [Int]()
+    private func _decode(hash: [Char]) -> [Int64] {
+        var ret = [Int64]()
         
         var alphabet = self.alphabet
         
@@ -229,15 +252,15 @@ public class Hashids_<T: protocol<Equatable, UnsignedIntegerType>>: HashidsGener
         return ret
     }
     
-    private func _hash(inout hash: [Char], var number: Int, alphabet: [Char]) {
+    private func _hash(inout hash: [Char], var number: Int64, alphabet: [Char]) {
         let length = alphabet.count, index = hash.count
         repeat {
-            hash.insert(alphabet[number % length], atIndex: index)
-            number = number / length
+            hash.insert(alphabet[Int(number % Int64(length))], atIndex: index)
+            number = number / Int64(length)
         } while number != 0
     }
 
-    private func _unhash<U: CollectionType where U.Index == Int, U.Generator.Element == Char>(hash: U, alphabet: [Char]) -> Int {
+    private func _unhash<U: CollectionType where U.Index == Int, U.Generator.Element == Char>(hash: U, alphabet: [Char]) -> Int64 {
         var value = 0.0
         
         let hashLength = hash.count
@@ -252,7 +275,7 @@ public class Hashids_<T: protocol<Equatable, UnsignedIntegerType>>: HashidsGener
             }
         }
         
-        return Int(trunc(value))
+        return Int64(trunc(value))
     }
     
     private func _saltify(inout salt: [Char], lottery: Char, alphabet: [Char]) -> (Range<Int>, Range<Int>) {
