@@ -28,7 +28,7 @@ public struct HashidsOptions {
 // MARK: Hashids protocol
 
 public protocol HashidsGenerator {
-    typealias Char
+    associatedtype Char
     
     func encode(value: Int64...) -> String?
     
@@ -129,7 +129,8 @@ public class Hashids_<T: protocol<Equatable, UnsignedIntegerType>>: HashidsGener
     
     public func encode(values: [Int64]) -> String? {
         let ret = _encode(values)
-        return ret.reduce(String(), combine: { (var so, i) in
+        return ret.reduce(String(), combine: { (so, i) in
+            var so = so
             let scalar:UInt32 = numericCast(i)
             so.append(UnicodeScalar(scalar))
             return so
@@ -252,8 +253,9 @@ public class Hashids_<T: protocol<Equatable, UnsignedIntegerType>>: HashidsGener
         return ret
     }
     
-    private func _hash(inout hash: [Char], var number: Int64, alphabet: [Char]) {
+    private func _hash(inout hash: [Char], number: Int64, alphabet: [Char]) {
         let length = alphabet.count, index = hash.count
+        var number = number
         repeat {
             hash.insert(alphabet[Int(number % Int64(length))], atIndex: index)
             number = number / Int64(length)
@@ -305,7 +307,7 @@ func transform<T: CollectionType where T.Generator.Element: Equatable>(a: T, _ b
 }
 
 func unique<T: CollectionType where T.Generator.Element: Equatable>(a: T) -> [T.Generator.Element] {
-    return transform(a, a) { (var c, a, b, e) in
+    return transform(a, a) { (c, a, b, e) in
         if !c.contains(e) {
             c.append(e)
         }
@@ -313,7 +315,7 @@ func unique<T: CollectionType where T.Generator.Element: Equatable>(a: T) -> [T.
 }
 
 func intersection<T: CollectionType where T.Generator.Element: Equatable>(a: T, _ b: T) -> [T.Generator.Element] {
-    return transform(a, b) { (var c, a, b, e) in
+    return transform(a, b) { (c, a, b, e) in
         if b.contains(e) {
             c.append(e)
         }
@@ -321,7 +323,7 @@ func intersection<T: CollectionType where T.Generator.Element: Equatable>(a: T, 
 }
 
 func difference<T: CollectionType where T.Generator.Element: Equatable>(a: T, _ b: T) -> [T.Generator.Element] {
-    return transform(a, b) { (var c, a, b, e) in
+    return transform(a, b) { (c, a, b, e) in
         if !b.contains(e) {
             c.append(e)
         }
@@ -346,7 +348,7 @@ func shuffle<T: MutableCollectionType, U:CollectionType where T.Index == Int, T.
         let tmp = source[sourceIndex]
         source[sourceIndex] = source[_j]
         source[_j] = tmp
-        v++
-        sourceIndex--
+        v += 1
+        sourceIndex -= 1
     }
 }
