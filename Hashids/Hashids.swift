@@ -212,7 +212,9 @@ public class Hashids_<T: protocol<Equatable, UnsignedIntegerType>>: HashidsGener
             shuffle(&alphabet, salt: alphabet)
             let lrange = 0..<half_length
             let rrange = half_length..<(alphabet.count)
-            hash = alphabet[rrange] + hash + alphabet[lrange]
+            let alphabetRightRange = alphabet[rrange]
+            let alphabetLeftRange = alphabet[lrange]
+            hash = alphabetRightRange + hash + alphabetLeftRange
             
             let excess = hash.count - minLength
             if excess > 0 {
@@ -293,39 +295,39 @@ public class Hashids_<T: protocol<Equatable, UnsignedIntegerType>>: HashidsGener
 
 // MARK: Internal functions
 
-func contains<T: CollectionType where T.Generator.Element: Equatable>(a: T, e: T.Generator.Element) -> Bool {
-    return a.indexOf(e) != nil
+func contains<T: CollectionType where T.Generator.Element: Equatable>(array: T, element: T.Generator.Element) -> Bool {
+    return array.indexOf(element) != nil
 }
 
-func transform<T: CollectionType where T.Generator.Element: Equatable>(a: T, _ b: T, cmpr: (inout [T.Generator.Element], T, T, T.Generator.Element ) -> Void ) -> [T.Generator.Element] {
-    typealias U = T.Generator.Element
-    var c = [U]()
-    for i in a {
-        cmpr(&c, a, b, i)
+func transform<T: CollectionType where T.Generator.Element: Equatable>(primaryArray: T, _ secondaryArray: T, comparer: (inout [T.Generator.Element], T, T, T.Generator.Element ) -> Void ) -> [T.Generator.Element] {
+    typealias Element = T.Generator.Element
+    var elementArray = [Element]()
+    for element in primaryArray {
+        comparer(&elementArray, primaryArray, secondaryArray, element)
     }
-    return c
+    return elementArray
 }
 
-func unique<T: CollectionType where T.Generator.Element: Equatable>(a: T) -> [T.Generator.Element] {
-    return transform(a, a) { (c, a, b, e) in
-        if !c.contains(e) {
-            c.append(e)
+func unique<T: CollectionType where T.Generator.Element: Equatable>(primaryArray: T) -> [T.Generator.Element] {
+    return transform(primaryArray, primaryArray) { (elementArray, primaryArray, secondaryArray, element) in
+        if !elementArray.contains(element) {
+            elementArray.append(element)
         }
     }
 }
 
-func intersection<T: CollectionType where T.Generator.Element: Equatable>(a: T, _ b: T) -> [T.Generator.Element] {
-    return transform(a, b) { (c, a, b, e) in
-        if b.contains(e) {
-            c.append(e)
+func intersection<T: CollectionType where T.Generator.Element: Equatable>(primaryArray: T, _ secondaryArray: T) -> [T.Generator.Element] {
+    return transform(primaryArray, secondaryArray) { (elementArray, primaryArray, secondaryArray, element) in
+        if secondaryArray.contains(element) {
+            elementArray.append(element)
         }
     }
 }
 
-func difference<T: CollectionType where T.Generator.Element: Equatable>(a: T, _ b: T) -> [T.Generator.Element] {
-    return transform(a, b) { (c, a, b, e) in
-        if !b.contains(e) {
-            c.append(e)
+func difference<T: CollectionType where T.Generator.Element: Equatable>(primaryArray: T, _ secondaryArray: T) -> [T.Generator.Element] {
+    return transform(primaryArray, secondaryArray) { (elementArray, primaryArray, secondaryArray, element) in
+        if !secondaryArray.contains(element) {
+            elementArray.append(element)
         }
     }
 }
@@ -338,17 +340,17 @@ func shuffle<T: MutableCollectionType, U:CollectionType where T.Index == Int, T.
     let saltStartIndex = saltRange.startIndex
     let saltCount = (saltRange.endIndex - saltRange.startIndex)
     var sourceIndex = source.count - 1
-    var v = 0
-    var _p = 0
+    var currentSaltIndex = 0
+    var saltedTotal = 0
     while sourceIndex > 0 {
-        v = v % saltCount
-        let _i: Int = numericCast(salt[saltStartIndex + v])
-        _p += _i
-        let _j: Int = (_i + v + _p) % sourceIndex
+        currentSaltIndex = currentSaltIndex % saltCount
+        let saltScalarCharacter: Int = numericCast(salt[saltStartIndex + currentSaltIndex])
+        saltedTotal += saltScalarCharacter
+        let newSourceCharacterIndex: Int = (saltScalarCharacter + currentSaltIndex + saltedTotal) % sourceIndex
         let tmp = source[sourceIndex]
-        source[sourceIndex] = source[_j]
-        source[_j] = tmp
-        v += 1
+        source[sourceIndex] = source[newSourceCharacterIndex]
+        source[newSourceCharacterIndex] = tmp
+        currentSaltIndex += 1
         sourceIndex -= 1
     }
 }
