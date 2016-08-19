@@ -101,7 +101,7 @@ class HashIdsTests: XCTestCase {
     func testBigDataSet() {
         var input = [Int]()
         for _ in 0..<100 {
-            input.append(random())
+            input.append(Int(arc4random()))
         }
         let hashids = Hashids(salt: "this is my salt")
         let hash = hashids.encode(input)
